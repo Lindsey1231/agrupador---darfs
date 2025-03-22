@@ -17,10 +17,17 @@ def extrair_texto_pdf(arquivo):
         st.error(f"Erro na extração do texto do arquivo {arquivo.name}: {str(e)}")
         return ""
 
-def encontrar_nome_fornecedor(texto):
+def encontrar_nome_fornecedor(texto, tipo_arquivo):
     """Busca o nome do fornecedor no conteúdo do PDF."""
-    # Padrão para capturar o nome do fornecedor
-    padrao_nome = re.findall(r"CONRAD EDITORA DO BRASIL LTDA", texto)
+    if tipo_arquivo == "DARF":
+        # Extrai o nome do fornecedor após "Parceiro :"
+        padrao_nome = re.findall(r"Parceiro\s*:\s*([\w\s]+?)\n", texto)
+    elif tipo_arquivo == "Comprovante":
+        # Extrai o nome do fornecedor após "Nome:"
+        padrao_nome = re.findall(r"Nome\s*:\s*([\w\s]+?)\n", texto)
+    else:
+        return set()
+    
     return set(padrao_nome)  # Usamos um set para facilitar a comparação
 
 def encontrar_valor_darf(texto):
@@ -61,13 +68,14 @@ def organizar_por_nome_e_valor(arquivos):
     for arquivo in arquivos:
         nome = arquivo.name
         texto_pdf = extrair_texto_pdf(arquivo)
-        nome_fornecedor = encontrar_nome_fornecedor(texto_pdf)
         
         if "DARF" in nome:
+            nome_fornecedor = encontrar_nome_fornecedor(texto_pdf, "DARF")
             valores = encontrar_valor_darf(texto_pdf)
             info_arquivos.append((arquivo, nome, valores, nome_fornecedor, "DARF"))
             st.write(f"📄 DARF: {nome} | Nome do Fornecedor: {nome_fornecedor} | Valores: {valores}")
         elif "Comprovante" in nome:
+            nome_fornecedor = encontrar_nome_fornecedor(texto_pdf, "Comprovante")
             valores = encontrar_valor_comprovante(texto_pdf)
             info_arquivos.append((arquivo, nome, valores, nome_fornecedor, "Comprovante"))
             st.write(f"📄 Comprovante: {nome} | Nome do Fornecedor: {nome_fornecedor} | Valores: {valores}")
