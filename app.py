@@ -92,7 +92,8 @@ def organizar_por_nome_e_valor(arquivos):
             try:
                 for doc in arquivos:
                     merger.append(doc)
-                output_filename = f"Agrupado_{nome_final}"
+                # Usa o nome do arquivo DARF como nome do arquivo final
+                output_filename = nome_final
                 output_path = os.path.join(temp_dir, output_filename)
                 merger.write(output_path)
                 merger.close()
