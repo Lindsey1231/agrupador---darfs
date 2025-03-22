@@ -26,7 +26,7 @@ def encontrar_cnpj(texto):
     return cnpjs
 
 def encontrar_valor_darf(texto):
-    """Busca valores monetários no DARF (após 'Vl.Recolhe')."""
+    """Busca valores monetários no DARF (após 'VI.Recolhe : R$')."""
     padrao_valor = re.findall(r"VI\.Recolhe\s*:\s*R\$\s*([\d\s.,]+)", texto)
     valores = set()
     for valor in padrao_valor:
