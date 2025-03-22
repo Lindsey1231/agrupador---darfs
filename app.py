@@ -21,7 +21,7 @@ def encontrar_nome_fornecedor(texto, tipo_arquivo):
     """Busca o nome do fornecedor no conteúdo do PDF."""
     if tipo_arquivo == "DARF":
         # Extrai o nome do fornecedor após "Parceiro :"
-        padrao_nome = re.findall(r"Parceiro\s*:\s*([\w\s]+?)\n", texto)
+        padrao_nome = re.findall(r"Parceiro\s*:\s*([\w\s]+?)\s*\d", texto)
     elif tipo_arquivo == "Comprovante":
         # Extrai o nome do fornecedor após "Nome:"
         padrao_nome = re.findall(r"Nome\s*:\s*([\w\s]+?)\n", texto)
