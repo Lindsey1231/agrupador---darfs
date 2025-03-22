@@ -24,8 +24,8 @@ def encontrar_nome_fornecedor(texto):
     return set(padrao_nome)  # Usamos um set para facilitar a comparação
 
 def encontrar_valor_darf(texto):
-    """Busca valores monetários no DARF (após 'VI.Recolhe : R$')."""
-    padrao_valor = re.findall(r"VI\.Recolhe\s*:\s*R\$\s*([\d\s.,]+)", texto)
+    """Busca valores monetários no DARF (após 'Vl.Recolhe :')."""
+    padrao_valor = re.findall(r"Vl\.Recolhe\s*:\s*([\d\s.,]+)", texto)
     valores = set()
     for valor in padrao_valor:
         # Remove espaços e converte para o formato numérico
