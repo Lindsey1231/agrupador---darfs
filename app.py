@@ -45,7 +45,7 @@ def encontrar_valor_darf(texto):
 
 def encontrar_valor_comprovante(texto):
     """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
-    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
+    padrao_valor = re.findall(r"VALOR TOTAL\s*R\$\s*([\d.,]+)", texto)
     valores = set()
     for valor in padrao_valor:
         # Remove "R$" e converte para o formato numérico
