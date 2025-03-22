@@ -17,13 +17,11 @@ def extrair_texto_pdf(arquivo):
         st.error(f"Erro na extração do texto do arquivo {arquivo.name}: {str(e)}")
         return ""
 
-def encontrar_cnpj(texto):
-    """Busca CNPJs no conteúdo do PDF e padroniza a formatação."""
-    # Captura CNPJs com ou sem pontuação
-    padrao_cnpj = re.findall(r"\b\d{2}[.\/]?\d{3}[.\/]?\d{3}[\/\-]?\d{4}[\/\-]?\d{2}\b", texto)
-    # Remove pontuação e padroniza o formato
-    cnpjs = {re.sub(r'[^\d]', '', cnpj) for cnpj in padrao_cnpj} if padrao_cnpj else set()
-    return cnpjs
+def encontrar_nome_fornecedor(texto):
+    """Busca o nome do fornecedor no conteúdo do PDF."""
+    # Padrão para capturar o nome do fornecedor
+    padrao_nome = re.findall(r"CONRAD EDITORA DO BRASIL LTDA", texto)
+    return set(padrao_nome)  # Usamos um set para facilitar a comparação
 
 def encontrar_valor_darf(texto):
     """Busca valores monetários no DARF (após 'VI.Recolhe : R$')."""
@@ -51,7 +49,7 @@ def encontrar_valor_comprovante(texto):
             continue
     return valores
 
-def organizar_por_cnpj_e_valor(arquivos):
+def organizar_por_nome_e_valor(arquivos):
     st.write("### Processando arquivos...")
     temp_dir = tempfile.mkdtemp()
     zip_path = os.path.join(temp_dir, "darfs_agrupados.zip")
@@ -63,26 +61,26 @@ def organizar_por_cnpj_e_valor(arquivos):
     for arquivo in arquivos:
         nome = arquivo.name
         texto_pdf = extrair_texto_pdf(arquivo)
-        cnpjs = encontrar_cnpj(texto_pdf)
+        nome_fornecedor = encontrar_nome_fornecedor(texto_pdf)
         
         if "DARF" in nome:
             valores = encontrar_valor_darf(texto_pdf)
-            info_arquivos.append((arquivo, nome, valores, cnpjs, "DARF"))
-            st.write(f"📄 DARF: {nome} | CNPJs: {cnpjs} | Valores: {valores}")
+            info_arquivos.append((arquivo, nome, valores, nome_fornecedor, "DARF"))
+            st.write(f"📄 DARF: {nome} | Nome do Fornecedor: {nome_fornecedor} | Valores: {valores}")
         elif "Comprovante" in nome:
             valores = encontrar_valor_comprovante(texto_pdf)
-            info_arquivos.append((arquivo, nome, valores, cnpjs, "Comprovante"))
-            st.write(f"📄 Comprovante: {nome} | CNPJs: {cnpjs} | Valores: {valores}")
+            info_arquivos.append((arquivo, nome, valores, nome_fornecedor, "Comprovante"))
+            st.write(f"📄 Comprovante: {nome} | Nome do Fornecedor: {nome_fornecedor} | Valores: {valores}")
     
     # Associa DARFs e comprovantes
-    for darf, nome_darf, valores_darf, cnpjs_darf, tipo_darf in info_arquivos:
+    for darf, nome_darf, valores_darf, nome_fornecedor_darf, tipo_darf in info_arquivos:
         if tipo_darf != "DARF":
             continue  # Ignora arquivos que não são DARFs
         
-        for comprovante, nome_comp, valores_comp, cnpjs_comp, tipo_comp in info_arquivos:
+        for comprovante, nome_comp, valores_comp, nome_fornecedor_comp, tipo_comp in info_arquivos:
             if tipo_comp == "Comprovante":
-                # Verifica correspondência de CNPJ e valor
-                if cnpjs_darf & cnpjs_comp and valores_darf & valores_comp:
+                # Verifica correspondência de nome do fornecedor e valor
+                if nome_fornecedor_darf & nome_fornecedor_comp and valores_darf & valores_comp:
                     agrupados[nome_darf] = [darf, comprovante]
                     st.write(f"✅ Correspondência encontrada: {nome_darf} ↔ {nome_comp}")
                     break
@@ -114,7 +112,7 @@ def main():
     
     if arquivos and len(arquivos) > 0:
         if st.button("🔗 Juntar e Processar PDFs", key="process_button"):
-            pdf_resultados, zip_path = organizar_por_cnpj_e_valor(arquivos)
+            pdf_resultados, zip_path = organizar_por_nome_e_valor(arquivos)
             
             for nome, caminho in pdf_resultados.items():
                 with open(caminho, "rb") as f:
