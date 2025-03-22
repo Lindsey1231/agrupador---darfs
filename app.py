@@ -25,8 +25,15 @@ def encontrar_cnpj(texto):
 
 def encontrar_valor_darf(texto):
     """Busca valores monetários no DARF (após 'Vl.Recolhe')."""
-    padrao_valor = re.findall(r"Vl\.Recolhe\s*([\d.,]+)", texto)
-    valores = {float(valor.replace('.', '').replace(',', '.')) for valor in padrao_valor} if padrao_valor else set()
+    padrao_valor = re.findall(r"Vl\.Recolhe\s*([\d\s.,]+)", texto)
+    valores = set()
+    for valor in padrao_valor:
+        # Remove espaços e converte para o formato numérico
+        valor_limpo = valor.replace(" ", "").replace(".", "").replace(",", ".")
+        try:
+            valores.add(float(valor_limpo))
+        except ValueError:
+            continue
     return valores
 
 def encontrar_valor_comprovante(texto):
@@ -72,15 +79,18 @@ def organizar_por_cnpj_e_valor(arquivos):
     with zipfile.ZipFile(zip_path, "w") as zipf:
         for nome_final, arquivos in agrupados.items():
             merger = PdfMerger()
-            for doc in arquivos:
-                merger.append(doc)
-            output_filename = f"Agrupado_{nome_final}"
-            output_path = os.path.join(temp_dir, output_filename)
-            merger.write(output_path)
-            merger.close()
-            pdf_resultados[output_filename] = output_path
-            zipf.write(output_path, arcname=output_filename)
-            st.write(f"📂 Arquivo gerado: {output_filename}")
+            try:
+                for doc in arquivos:
+                    merger.append(doc)
+                output_filename = f"Agrupado_{nome_final}"
+                output_path = os.path.join(temp_dir, output_filename)
+                merger.write(output_path)
+                merger.close()
+                pdf_resultados[output_filename] = output_path
+                zipf.write(output_path, arcname=output_filename)
+                st.write(f"📂 Arquivo gerado: {output_filename}")
+            except Exception as e:
+                st.error(f"Erro ao juntar os arquivos {nome_final}: {str(e)}")
     
     return pdf_resultados, zip_path
 
