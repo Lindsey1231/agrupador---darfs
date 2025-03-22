@@ -19,13 +19,15 @@ def extrair_texto_pdf(arquivo):
 
 def encontrar_cnpj(texto):
     """Busca CNPJs no conteúdo do PDF e padroniza a formatação."""
+    # Captura CNPJs com ou sem pontuação
     padrao_cnpj = re.findall(r"\b\d{2}[.\/]?\d{3}[.\/]?\d{3}[\/\-]?\d{4}[\/\-]?\d{2}\b", texto)
+    # Remove pontuação e padroniza o formato
     cnpjs = {re.sub(r'[^\d]', '', cnpj) for cnpj in padrao_cnpj} if padrao_cnpj else set()
     return cnpjs
 
 def encontrar_valor_darf(texto):
     """Busca valores monetários no DARF (após 'Vl.Recolhe')."""
-    padrao_valor = re.findall(r"Vl\.Recolhe\s*([\d\s.,]+)", texto)
+    padrao_valor = re.findall(r"VI\.Recolhe\s*:\s*R\$\s*([\d\s.,]+)", texto)
     valores = set()
     for valor in padrao_valor:
         # Remove espaços e converte para o formato numérico
@@ -39,7 +41,14 @@ def encontrar_valor_darf(texto):
 def encontrar_valor_comprovante(texto):
     """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
     padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
-    valores = {float(valor.replace('.', '').replace(',', '.')) for valor in padrao_valor} if padrao_valor else set()
+    valores = set()
+    for valor in padrao_valor:
+        # Remove "R$" e converte para o formato numérico
+        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
+        try:
+            valores.add(float(valor_limpo))
+        except ValueError:
+            continue
     return valores
 
 def organizar_por_cnpj_e_valor(arquivos):
@@ -59,9 +68,11 @@ def organizar_por_cnpj_e_valor(arquivos):
         if "DARF" in nome:
             valores = encontrar_valor_darf(texto_pdf)
             info_arquivos.append((arquivo, nome, valores, cnpjs, "DARF"))
+            st.write(f"📄 DARF: {nome} | CNPJs: {cnpjs} | Valores: {valores}")
         elif "Comprovante" in nome:
             valores = encontrar_valor_comprovante(texto_pdf)
             info_arquivos.append((arquivo, nome, valores, cnpjs, "Comprovante"))
+            st.write(f"📄 Comprovante: {nome} | CNPJs: {cnpjs} | Valores: {valores}")
     
     # Associa DARFs e comprovantes
     for darf, nome_darf, valores_darf, cnpjs_darf, tipo_darf in info_arquivos:
@@ -73,6 +84,7 @@ def organizar_por_cnpj_e_valor(arquivos):
                 # Verifica correspondência de CNPJ e valor
                 if cnpjs_darf & cnpjs_comp and valores_darf & valores_comp:
                     agrupados[nome_darf] = [darf, comprovante]
+                    st.write(f"✅ Correspondência encontrada: {nome_darf} ↔ {nome_comp}")
                     break
     
     # Gera PDFs agrupados e arquivo ZIP
