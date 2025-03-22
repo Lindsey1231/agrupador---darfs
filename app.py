@@ -85,12 +85,21 @@ def organizar_por_nome_e_valor(arquivos):
         if tipo_darf != "DARF":
             continue  # Ignora arquivos que não são DARFs
         
+        # Primeira etapa: tenta agrupar apenas pelo valor
+        correspondencia_encontrada = False
         for comprovante, nome_comp, valores_comp, nome_fornecedor_comp, tipo_comp in info_arquivos:
-            if tipo_comp == "Comprovante":
-                # Verifica correspondência de nome do fornecedor e valor
-                if nome_fornecedor_darf & nome_fornecedor_comp and valores_darf & valores_comp:
+            if tipo_comp == "Comprovante" and valores_darf & valores_comp:
+                agrupados[nome_darf] = [darf, comprovante]
+                st.write(f"✅ Correspondência encontrada (VALOR): {nome_darf} ↔ {nome_comp}")
+                correspondencia_encontrada = True
+                break
+        
+        # Segunda etapa: se não encontrou correspondência pelo valor, tenta pelo nome + valor
+        if not correspondencia_encontrada:
+            for comprovante, nome_comp, valores_comp, nome_fornecedor_comp, tipo_comp in info_arquivos:
+                if tipo_comp == "Comprovante" and nome_fornecedor_darf & nome_fornecedor_comp and valores_darf & valores_comp:
                     agrupados[nome_darf] = [darf, comprovante]
-                    st.write(f"✅ Correspondência encontrada: {nome_darf} ↔ {nome_comp}")
+                    st.write(f"✅ Correspondência encontrada (NOME + VALOR): {nome_darf} ↔ {nome_comp}")
                     break
     
     # Gera PDFs agrupados e arquivo ZIP
