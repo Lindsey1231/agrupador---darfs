@@ -123,7 +123,7 @@ def organizar_por_nome_e_valor(arquivos):
     return pdf_resultados, zip_path
 
 def main():
-    st.title("Agrupador de DARFs e Comprovantes")
+    st.title("Agrupador de DARFs")
     
     # Adicionando um key único ao file_uploader
     arquivos = st.file_uploader("Envie seus arquivos", accept_multiple_files=True, key="file_uploader")
