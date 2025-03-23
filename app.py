@@ -59,7 +59,6 @@ def encontrar_valor_comprovante(texto):
 def organizar_por_nome_e_valor(arquivos):
     st.write("### Processando arquivos...")
     temp_dir = tempfile.mkdtemp()
-    zip_path = os.path.join(temp_dir, "darfs_agrupados.zip")
     pdf_resultados = {}
     agrupados = {}
     info_arquivos = []
@@ -103,22 +102,24 @@ def organizar_por_nome_e_valor(arquivos):
                     break
     
     # Gera PDFs agrupados e arquivo ZIP
-    with zipfile.ZipFile(zip_path, "w") as zipf:
-        for nome_final, arquivos in agrupados.items():
-            merger = PdfMerger()
-            try:
-                for doc in arquivos:
-                    merger.append(doc)
-                # Usa o nome do arquivo DARF como nome do arquivo final
-                output_filename = nome_final
-                output_path = os.path.join(temp_dir, output_filename)
-                merger.write(output_path)
-                merger.close()
-                pdf_resultados[output_filename] = output_path
-                zipf.write(output_path, arcname=output_filename)
-                st.write(f"📂 Arquivo gerado: {output_filename}")
-            except Exception as e:
-                st.error(f"Erro ao juntar os arquivos {nome_final}: {str(e)}")
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
+        zip_path = tmp_zip.name
+        with zipfile.ZipFile(zip_path, "w") as zipf:
+            for nome_final, arquivos in agrupados.items():
+                merger = PdfMerger()
+                try:
+                    for doc in arquivos:
+                        merger.append(doc)
+                    # Usa o nome do arquivo DARF como nome do arquivo final
+                    output_filename = nome_final
+                    output_path = os.path.join(temp_dir, output_filename)
+                    merger.write(output_path)
+                    merger.close()
+                    pdf_resultados[output_filename] = output_path
+                    zipf.write(output_path, arcname=output_filename)
+                    st.write(f"📂 Arquivo gerado: {output_filename}")
+                except Exception as e:
+                    st.error(f"Erro ao juntar os arquivos {nome_final}: {str(e)}")
     
     return pdf_resultados, zip_path
 
@@ -146,6 +147,7 @@ def main():
                             key=f"download_{nome}"
                         )
                 
+                # Força o download do ZIP
                 with open(zip_path, "rb") as f:
                     st.download_button(
                         label="📥 Baixar todos como ZIP",
