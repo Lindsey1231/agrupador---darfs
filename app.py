@@ -45,7 +45,7 @@ def encontrar_valor_darf(texto):
 
 def encontrar_valor_comprovante(texto):
     """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
-    padrao_valor = re.findall(r"VALOR TOTAL\s*R\$\s*([\d.,]+)", texto)
+    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
     valores = set()
     for valor in padrao_valor:
         # Remove "R$" e converte para o formato numérico
@@ -85,21 +85,21 @@ def organizar_por_nome_e_valor(arquivos):
         if tipo_darf != "DARF":
             continue  # Ignora arquivos que não são DARFs
         
-        # Primeira etapa: tenta agrupar apenas pelo valor
+        # Primeira etapa: tenta agrupar por NOME + VALOR
         correspondencia_encontrada = False
         for comprovante, nome_comp, valores_comp, nome_fornecedor_comp, tipo_comp in info_arquivos:
-            if tipo_comp == "Comprovante" and valores_darf & valores_comp:
+            if tipo_comp == "Comprovante" and nome_fornecedor_darf & nome_fornecedor_comp and valores_darf & valores_comp:
                 agrupados[nome_darf] = [darf, comprovante]
-                st.write(f"✅ Correspondência encontrada (VALOR): {nome_darf} ↔ {nome_comp}")
+                st.write(f"✅ Correspondência encontrada (NOME + VALOR): {nome_darf} ↔ {nome_comp}")
                 correspondencia_encontrada = True
                 break
         
-        # Segunda etapa: se não encontrou correspondência pelo valor, tenta pelo nome + valor
+        # Segunda etapa: se não encontrou correspondência por NOME + VALOR, tenta apenas pelo VALOR
         if not correspondencia_encontrada:
             for comprovante, nome_comp, valores_comp, nome_fornecedor_comp, tipo_comp in info_arquivos:
-                if tipo_comp == "Comprovante" and nome_fornecedor_darf & nome_fornecedor_comp and valores_darf & valores_comp:
+                if tipo_comp == "Comprovante" and valores_darf & valores_comp:
                     agrupados[nome_darf] = [darf, comprovante]
-                    st.write(f"✅ Correspondência encontrada (NOME + VALOR): {nome_darf} ↔ {nome_comp}")
+                    st.write(f"✅ Correspondência encontrada (VALOR): {nome_darf} ↔ {nome_comp}")
                     break
     
     # Gera PDFs agrupados e arquivo ZIP
@@ -123,13 +123,15 @@ def organizar_por_nome_e_valor(arquivos):
     return pdf_resultados, zip_path
 
 def main():
-    st.title("Agrupador de DARFs")
+    st.title("Agrupador de Documentos Fiscais")  # Nome do app alterado
     
-    # Adicionando um key único ao file_uploader
-    arquivos = st.file_uploader("Envie seus arquivos", accept_multiple_files=True, key="file_uploader")
+    # Texto do botão de upload personalizado
+    arquivos = st.file_uploader("Selecione os arquivos DARF e comprovantes", accept_multiple_files=True, key="file_uploader")
     
     if arquivos and len(arquivos) > 0:
-        if st.button("🔗 Juntar e Processar PDFs", key="process_button"):
+        # Texto do botão de processamento personalizado
+        if st.button("🔗 Processar Documentos", key="process_button"):
+            st.write("### Iniciando processamento...")  # Mensagem personalizada
             pdf_resultados, zip_path = organizar_por_nome_e_valor(arquivos)
             
             for nome, caminho in pdf_resultados.items():
@@ -139,16 +141,16 @@ def main():
                         data=f,
                         file_name=nome,
                         mime="application/pdf",
-                        key=f"download_{nome}"  # Adicionando um key único para cada botão de download
+                        key=f"download_{nome}"
                     )
             
             with open(zip_path, "rb") as f:
                 st.download_button(
                     label="📥 Baixar todos como ZIP",
                     data=f,
-                    file_name="darfs_agrupados.zip",
+                    file_name="documentos_agrupados.zip",  # Nome do ZIP personalizado
                     mime="application/zip",
-                    key="download_zip"  # Adicionando um key único para o botão de download do ZIP
+                    key="download_zip"
                 )
 
 if __name__ == "__main__":
