@@ -134,24 +134,28 @@ def main():
             st.write("### Iniciando processamento...")  # Mensagem personalizada
             pdf_resultados, zip_path = organizar_por_nome_e_valor(arquivos)
             
-            for nome, caminho in pdf_resultados.items():
-                with open(caminho, "rb") as f:
+            # Verifica se o arquivo ZIP foi gerado corretamente
+            if os.path.exists(zip_path):
+                for nome, caminho in pdf_resultados.items():
+                    with open(caminho, "rb") as f:
+                        st.download_button(
+                            label=f"📄 Baixar {nome}",
+                            data=f,
+                            file_name=nome,
+                            mime="application/pdf",
+                            key=f"download_{nome}"
+                        )
+                
+                with open(zip_path, "rb") as f:
                     st.download_button(
-                        label=f"📄 Baixar {nome}",
+                        label="📥 Baixar todos como ZIP",
                         data=f,
-                        file_name=nome,
-                        mime="application/pdf",
-                        key=f"download_{nome}"
+                        file_name="documentos_agrupados.zip",  # Nome do ZIP personalizado
+                        mime="application/zip",
+                        key="download_zip"
                     )
-            
-            with open(zip_path, "rb") as f:
-                st.download_button(
-                    label="📥 Baixar todos como ZIP",
-                    data=f,
-                    file_name="documentos_agrupados.zip",  # Nome do ZIP personalizado
-                    mime="application/zip",
-                    key="download_zip"
-                )
+            else:
+                st.error("Erro ao gerar o arquivo ZIP. Verifique os logs para mais detalhes.")
 
 if __name__ == "__main__":
     main()
