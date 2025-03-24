@@ -52,8 +52,8 @@ def encontrar_valor_darf(texto):
         except ValueError:
             continue
     
-    # Terceira tentativa: valor após "Valor Total do Documento" ou "Valor Total"
-    padrao_valor_3 = re.findall(r"Valor Total\s*(?:do Documento)?\s*:\s*([\d\s.,]+)", texto)
+    # Terceira tentativa: valor na linha seguinte a "Valor Total do Documento"
+    padrao_valor_3 = re.findall(r"Valor Total do Documento\s*\n\s*([\d\s.,]+)", texto)
     for valor in padrao_valor_3:
         valor_limpo = valor.replace(" ", "").replace(".", "").replace(",", ".")
         try:
