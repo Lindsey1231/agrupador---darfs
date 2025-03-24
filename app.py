@@ -31,16 +31,36 @@ def encontrar_nome_fornecedor(texto, tipo_arquivo):
     return set(padrao_nome)  # Usamos um set para facilitar a comparação
 
 def encontrar_valor_darf(texto):
-    """Busca valores monetários no DARF (após 'Vl.Recolhe :')."""
-    padrao_valor = re.findall(r"Vl\.Recolhe\s*:\s*([\d\s.,]+)", texto)
+    """Busca valores monetários no DARF."""
     valores = set()
-    for valor in padrao_valor:
-        # Remove espaços e converte para o formato numérico
+    
+    # Primeira tentativa: valor após "Vl.Recolhe :"
+    padrao_valor_1 = re.findall(r"Vl\.Recolhe\s*:\s*([\d\s.,]+)", texto)
+    for valor in padrao_valor_1:
         valor_limpo = valor.replace(" ", "").replace(".", "").replace(",", ".")
         try:
             valores.add(float(valor_limpo))
         except ValueError:
             continue
+    
+    # Segunda tentativa: valor após "VALOR DO PRINCIPAL"
+    padrao_valor_2 = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
+    for valor in padrao_valor_2:
+        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
+        try:
+            valores.add(float(valor_limpo))
+        except ValueError:
+            continue
+    
+    # Terceira tentativa: valor após "Valor Total do Documento" ou "Valor Total"
+    padrao_valor_3 = re.findall(r"Valor Total\s*(?:do Documento)?\s*:\s*([\d\s.,]+)", texto)
+    for valor in padrao_valor_3:
+        valor_limpo = valor.replace(" ", "").replace(".", "").replace(",", ".")
+        try:
+            valores.add(float(valor_limpo))
+        except ValueError:
+            continue
+    
     return valores
 
 def encontrar_valor_comprovante(texto):
