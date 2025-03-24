@@ -185,7 +185,7 @@ def organizar_por_nome_e_valor(arquivos):
     return pdf_resultados, zip_path
 
 def main():
-    st.title("Agrupador de Documentos Fiscais")  # Nome do app alterado
+    st.title("Agrupador de DARFs")  # Nome do app alterado
     
     # Texto do botão de upload personalizado
     arquivos = st.file_uploader("Selecione os arquivos DARF e comprovantes", accept_multiple_files=True, key="file_uploader")
