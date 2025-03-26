@@ -69,16 +69,35 @@ def encontrar_valor_darf(texto):
     return valores
 
 def encontrar_valor_comprovante(texto):
-    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
-    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
+    """Busca valores monetários no comprovante."""
     valores = set()
-    for valor in padrao_valor:
-        # Remove o R$ e pontos (se houver), substitui vírgula por ponto
-        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
+    
+    # Padrão 1: VALOR DO PRINCIPAL (formato americano com vírgula como milhar)
+    padrao_1 = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d,\.]+)", texto)
+    for valor in padrao_1:
+        # Remove R$, pontos e vírgulas, depois reconstrói
+        valor_limpo = valor.replace("R$", "").replace(",", "").replace(".", "")
+        # Adiciona o ponto decimal manualmente (assumindo 2 casas decimais)
+        if "." in valor:  # Se tinha ponto decimal originalmente
+            partes = valor.split(".")
+            valor_limpo = partes[0].replace(",", "") + "." + partes[1][:2]
         try:
             valores.add(float(valor_limpo))
         except ValueError:
             continue
+    
+    # Padrão 2: VALOR TOTAL (como fallback)
+    padrao_2 = re.findall(r"VALOR TOTAL\s*R\$\s*([\d,\.]+)", texto)
+    for valor in padrao_2:
+        valor_limpo = valor.replace("R$", "").replace(",", "").replace(".", "")
+        if "." in valor:
+            partes = valor.split(".")
+            valor_limpo = partes[0].replace(",", "") + "." + partes[1][:2]
+        try:
+            valores.add(float(valor_limpo))
+        except ValueError:
+            continue
+    
     return valores
 
 def organizar_por_nome_e_valor(arquivos):
