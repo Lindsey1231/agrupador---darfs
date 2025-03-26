@@ -57,8 +57,10 @@ def encontrar_valor_darf(texto):
     # Terceira tentativa: valor na linha seguinte a "Valor Total do Documento"
     padrao_valor_3 = re.findall(r"Valor Total do Documento\s*\n\s*([\d\s.,]+)", texto)
     for valor in padrao_valor_3:
-        # Remove espaços e separadores de milhares, mantendo o ponto decimal
-        valor_limpo = valor.replace(" ", "").replace(",", "")
+        # Remove todos os espaços e pontos (separadores de milhares)
+        valor_sem_espacos = valor.replace(" ", "").replace(".", "")
+        # Substitui vírgula decimal por ponto
+        valor_limpo = valor_sem_espacos.replace(",", ".")
         try:
             valores.add(float(valor_limpo))
         except ValueError:
@@ -71,45 +73,7 @@ def encontrar_valor_comprovante(texto):
     padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
     valores = set()
     for valor in padrao_valor:
-        # Remove "R$" e converte para o formato numérico (ponto como separador decimal)
-        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
-    return valores
-def encontrar_valor_comprovante(texto):
-    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
-    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
-    valores = set()
-    for valor in padrao_valor:
-        # Remove "R$" e separadores de milhares, mantendo o ponto decimal
-        valor_limpo = valor.replace("R$", "").replace(",", "")
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
-    return valores
-
-def encontrar_valor_comprovante(texto):
-    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
-    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
-    valores = set()
-    for valor in padrao_valor:
-        # Remove "R$" e converte para o formato numérico (ponto como separador decimal)
-        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
-    return valores
-
-def encontrar_valor_comprovante(texto):
-    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
-    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
-    valores = set()
-    for valor in padrao_valor:
-        # Remove "R$" e converte para o formato numérico
+        # Remove o R$ e pontos (se houver), substitui vírgula por ponto
         valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
         try:
             valores.add(float(valor_limpo))
