@@ -20,83 +20,56 @@ def extrair_texto_pdf(arquivo):
 def encontrar_nome_fornecedor(texto, tipo_arquivo):
     """Busca o nome do fornecedor no conteúdo do PDF."""
     if tipo_arquivo == "DARF":
-        # Extrai o nome do fornecedor após "Parceiro :"
         padrao_nome = re.findall(r"Parceiro\s*:\s*([\w\s]+?)\s*\d", texto)
     elif tipo_arquivo == "Comprovante":
-        # Extrai o nome do fornecedor após "Nome:"
         padrao_nome = re.findall(r"Nome\s*:\s*([\w\s]+?)\n", texto)
     else:
         return set()
-    
-    return set(padrao_nome)  # Usamos um set para facilitar a comparação
+    return set(padrao_nome)
 
 def encontrar_valor_darf(texto):
-    """Busca valores monetários no DARF."""
+    """Busca valores monetários no DARF com tratamento unificado"""
     valores = set()
     
-    # Primeira tentativa: valor após "Vl.Recolhe :"
-    padrao_valor_1 = re.findall(r"Vl\.Recolhe\s*:\s*([\d\s.,]+)", texto)
-    for valor in padrao_valor_1:
-        # Remove espaços e converte para o formato numérico (ponto como separador decimal)
-        valor_limpo = valor.replace(" ", "").replace(".", "").replace(",", ".")
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
+    # Padrão 1: Valor com formato "3.79621" (sem separador de milhar)
+    padroes = [
+        r"Vl\.Recolhe\s*:\s*([\d\.,]+)",
+        r"VALOR DO PRINCIPAL\s*R\$\s*([\d\.,]+)",
+        r"Valor Total do Documento\s*\n\s*([\d\s\.,]+)"
+    ]
     
-    # Segunda tentativa: valor após "VALOR DO PRINCIPAL"
-    padrao_valor_2 = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
-    for valor in padrao_valor_2:
-        # Remove "R$" e converte para o formato numérico (ponto como separador decimal)
-        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
-    
-    # Terceira tentativa: valor na linha seguinte a "Valor Total do Documento"
-    padrao_valor_3 = re.findall(r"Valor Total do Documento\s*\n\s*([\d\s.,]+)", texto)
-    for valor in padrao_valor_3:
-        # Remove todos os espaços e pontos (separadores de milhares)
-        valor_sem_espacos = valor.replace(" ", "").replace(".", "")
-        # Substitui vírgula decimal por ponto
-        valor_limpo = valor_sem_espacos.replace(",", ".")
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
+    for padrao in padroes:
+        for valor in re.findall(padrao, texto):
+            valor_limpo = valor.replace(" ", "").replace(".", "").replace(",", ".")
+            try:
+                num = float(valor_limpo)
+                # Corrige valores que podem estar sem as duas casas decimais
+                if num < 1000 and not valor_limpo.endswith(".00"):
+                    num = num * 100
+                valores.add(round(num, 2))
+            except ValueError:
+                continue
     
     return valores
 
 def encontrar_valor_comprovante(texto):
-    """Busca valores monetários no comprovante."""
+    """Busca valores monetários no comprovante com tratamento unificado"""
     valores = set()
     
-    # Padrão 1: VALOR DO PRINCIPAL (formato americano com vírgula como milhar)
-    padrao_1 = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d,\.]+)", texto)
-    for valor in padrao_1:
-        # Remove R$, pontos e vírgulas, depois reconstrói
-        valor_limpo = valor.replace("R$", "").replace(",", "").replace(".", "")
-        # Adiciona o ponto decimal manualmente (assumindo 2 casas decimais)
-        if "." in valor:  # Se tinha ponto decimal originalmente
-            partes = valor.split(".")
-            valor_limpo = partes[0].replace(",", "") + "." + partes[1][:2]
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
+    padroes = [
+        r"VALOR DO PRINCIPAL\s*R\$\s*([\d\.,]+)",
+        r"VALOR TOTAL\s*R\$\s*([\d\.,]+)",
+        r"Valor\s*:\s*R\$\s*([\d\.,]+)"
+    ]
     
-    # Padrão 2: VALOR TOTAL (como fallback)
-    padrao_2 = re.findall(r"VALOR TOTAL\s*R\$\s*([\d,\.]+)", texto)
-    for valor in padrao_2:
-        valor_limpo = valor.replace("R$", "").replace(",", "").replace(".", "")
-        if "." in valor:
-            partes = valor.split(".")
-            valor_limpo = partes[0].replace(",", "") + "." + partes[1][:2]
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
+    for padrao in padroes:
+        for valor in re.findall(padrao, texto):
+            valor_limpo = valor.replace(".", "").replace(",", ".")
+            try:
+                num = float(valor_limpo)
+                valores.add(round(num, 2))
+            except ValueError:
+                continue
     
     return valores
 
@@ -126,9 +99,8 @@ def organizar_por_nome_e_valor(arquivos):
     # Associa DARFs e comprovantes
     for darf, nome_darf, valores_darf, nome_fornecedor_darf, tipo_darf in info_arquivos:
         if tipo_darf != "DARF":
-            continue  # Ignora arquivos que não são DARFs
+            continue
         
-        # Primeira etapa: tenta agrupar por NOME + VALOR
         correspondencia_encontrada = False
         for comprovante, nome_comp, valores_comp, nome_fornecedor_comp, tipo_comp in info_arquivos:
             if tipo_comp == "Comprovante" and nome_fornecedor_darf & nome_fornecedor_comp and valores_darf & valores_comp:
@@ -137,7 +109,6 @@ def organizar_por_nome_e_valor(arquivos):
                 correspondencia_encontrada = True
                 break
         
-        # Segunda etapa: se não encontrou correspondência por NOME + VALOR, tenta apenas pelo VALOR
         if not correspondencia_encontrada:
             for comprovante, nome_comp, valores_comp, nome_fornecedor_comp, tipo_comp in info_arquivos:
                 if tipo_comp == "Comprovante" and valores_darf & valores_comp:
@@ -154,7 +125,6 @@ def organizar_por_nome_e_valor(arquivos):
                 try:
                     for doc in arquivos:
                         merger.append(doc)
-                    # Usa o nome do arquivo DARF como nome do arquivo final
                     output_filename = nome_final
                     output_path = os.path.join(temp_dir, output_filename)
                     merger.write(output_path)
@@ -168,18 +138,17 @@ def organizar_por_nome_e_valor(arquivos):
     return pdf_resultados, zip_path
 
 def main():
-    st.title("Agrupador de DARFs")  # Nome do app alterado
+    st.title("Agrupador de DARFs e Comprovantes")
     
-    # Texto do botão de upload personalizado
-    arquivos = st.file_uploader("Selecione os arquivos DARF e comprovantes", accept_multiple_files=True, key="file_uploader")
+    arquivos = st.file_uploader("Selecione os arquivos DARF e comprovantes", 
+                              accept_multiple_files=True, 
+                              type=["pdf"])
     
     if arquivos and len(arquivos) > 0:
-        # Texto do botão de processamento personalizado
-        if st.button("🔗 Processar Documentos", key="process_button"):
-            st.write("### Iniciando processamento...")  # Mensagem personalizada
+        if st.button("🔗 Processar Documentos"):
+            st.write("### Iniciando processamento...")
             pdf_resultados, zip_path = organizar_por_nome_e_valor(arquivos)
             
-            # Verifica se o arquivo ZIP foi gerado corretamente
             if os.path.exists(zip_path):
                 for nome, caminho in pdf_resultados.items():
                     with open(caminho, "rb") as f:
@@ -191,17 +160,16 @@ def main():
                             key=f"download_{nome}"
                         )
                 
-                # Força o download do ZIP
                 with open(zip_path, "rb") as f:
                     st.download_button(
                         label="📥 Baixar todos como ZIP",
                         data=f,
-                        file_name="documentos_agrupados.zip",  # Nome do ZIP personalizado
+                        file_name="documentos_agrupados.zip",
                         mime="application/zip",
                         key="download_zip"
                     )
             else:
-                st.error("Erro ao gerar o arquivo ZIP. Verifique os logs para mais detalhes.")
+                st.error("Erro ao gerar o arquivo ZIP.")
 
 if __name__ == "__main__":
     main()
