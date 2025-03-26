@@ -28,49 +28,48 @@ def encontrar_nome_fornecedor(texto, tipo_arquivo):
     return set(padrao_nome)
 
 def encontrar_valor_darf(texto):
-    """Busca valores monetários no DARF com tratamento unificado"""
+    """Busca valores monetários no DARF mantendo as 3 tentativas originais"""
     valores = set()
     
-    # Padrão 1: Valor com formato "3.79621" (sem separador de milhar)
-    padroes = [
-        r"Vl\.Recolhe\s*:\s*([\d\.,]+)",
-        r"VALOR DO PRINCIPAL\s*R\$\s*([\d\.,]+)",
-        r"Valor Total do Documento\s*\n\s*([\d\s\.,]+)"
-    ]
+    # 1ª Tentativa: Vl.Recolhe (formato tradicional)
+    padrao_1 = re.findall(r"Vl\.Recolhe\s*:\s*([\d\s.,]+)", texto)
+    for valor in padrao_1:
+        valor_limpo = valor.replace(" ", "").replace(".", "").replace(",", ".")
+        try:
+            valores.add(float(valor_limpo))
+        except ValueError:
+            continue
     
-    for padrao in padroes:
-        for valor in re.findall(padrao, texto):
-            valor_limpo = valor.replace(" ", "").replace(".", "").replace(",", ".")
-            try:
-                num = float(valor_limpo)
-                # Corrige valores que podem estar sem as duas casas decimais
-                if num < 1000 and not valor_limpo.endswith(".00"):
-                    num = num * 100
-                valores.add(round(num, 2))
-            except ValueError:
-                continue
+    # 2ª Tentativa: VALOR DO PRINCIPAL (formato DARF)
+    padrao_2 = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
+    for valor in padrao_2:
+        valor_limpo = valor.replace(".", "").replace(",", ".")
+        try:
+            valores.add(float(valor_limpo))
+        except ValueError:
+            continue
+    
+    # 3ª Tentativa: Valor Total do Documento (formato multi-linha)
+    padrao_3 = re.findall(r"Valor Total do Documento\s*\n\s*([\d\s.,]+)", texto)
+    for valor in padrao_3:
+        valor_limpo = valor.replace(" ", "").replace(".", "").replace(",", ".")
+        try:
+            valores.add(float(valor_limpo))
+        except ValueError:
+            continue
     
     return valores
 
 def encontrar_valor_comprovante(texto):
-    """Busca valores monetários no comprovante com tratamento unificado"""
+    """Busca valores no comprovante mantendo a versão original"""
     valores = set()
-    
-    padroes = [
-        r"VALOR DO PRINCIPAL\s*R\$\s*([\d\.,]+)",
-        r"VALOR TOTAL\s*R\$\s*([\d\.,]+)",
-        r"Valor\s*:\s*R\$\s*([\d\.,]+)"
-    ]
-    
-    for padrao in padroes:
-        for valor in re.findall(padrao, texto):
-            valor_limpo = valor.replace(".", "").replace(",", ".")
-            try:
-                num = float(valor_limpo)
-                valores.add(round(num, 2))
-            except ValueError:
-                continue
-    
+    padrao = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
+    for valor in padrao:
+        valor_limpo = valor.replace(".", "").replace(",", ".")
+        try:
+            valores.add(float(valor_limpo))
+        except ValueError:
+            continue
     return valores
 
 def organizar_por_nome_e_valor(arquivos):
