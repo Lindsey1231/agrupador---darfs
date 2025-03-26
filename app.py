@@ -61,36 +61,52 @@ def encontrar_valor_darf(texto):
     return valores
 
 def encontrar_valor_comprovante(texto):
-    """Busca valores em comprovantes, tratando todos os formatos de milhões"""
+    """Busca valores em comprovantes com duas camadas de lógica"""
     valores = set()
     
-    # Padrão amplo que captura qualquer formato monetário
-    padroes = [
-        r"VALOR (?:DO PRINCIPAL|TOTAL)\s*R\$\s*([\d\.,]+)",  # Padrão principal
-        r"Valor\s*:\s*R\$\s*([\d\.,]+)",                      # Formato alternativo
-        r"Total\s*a\s*Pagar\s*R\$\s*([\d\.,]+)"               # Outra variante
+    # --------------------------------------------
+    # PRIMEIRA LÓGICA (ORIGINAL - PARA 99% DOS CASOS)
+    # --------------------------------------------
+    padrao_original = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d\.,]+)", texto)
+    for valor in padrao_original:
+        try:
+            # Formato original (funciona para valores até 999.999,99)
+            valor_limpo = valor.replace(".", "").replace(",", ".")
+            num = float(valor_limpo)
+            valores.add(num)
+        except ValueError:
+            continue
+    
+    if valores:  # Se encontrou valores com a primeira lógica, retorna
+        return valores
+    
+    # --------------------------------------------
+    # SEGUNDA LÓGICA (ESPECIAL PARA MILHÕES - APENAS SE A PRIMEIRA FALHAR)
+    # --------------------------------------------
+    padroes_especiais = [
+        r"VALOR (?:DO PRINCIPAL|TOTAL)\s*R\$\s*([\d\.,]+)",
+        r"Valor\s*:\s*R\$\s*([\d\.,]+)"
     ]
     
-    for padrao in padroes:
+    for padrao in padroes_especiais:
         for valor in re.findall(padrao, texto):
             try:
                 # Remove R$ e espaços
                 valor_limpo = valor.replace("R$", "").strip()
                 
-                # Detecta automaticamente o formato:
+                # Lógica inteligente para milhões
                 if ',' in valor_limpo and '.' in valor_limpo:
-                    # Formato "2,758,525.77" (inglês)
-                    if valor_limpo.index(',') < valor_limpo.index('.'):
+                    if valor_limpo.index(',') < valor_limpo.index('.'):  # Formato "2,758,525.77"
                         valor_limpo = valor_limpo.replace(',', '')
-                    # Formato "2.758.525,77" (português)
-                    else:
+                    else:  # Formato "2.758.525,77"
                         valor_limpo = valor_limpo.replace('.', '').replace(',', '.')
-                elif ',' in valor_limpo:
-                    # Formato "2758525,77"
+                elif ',' in valor_limpo:  # Formato "2758525,77"
                     valor_limpo = valor_limpo.replace(',', '.')
-                # Formato "2758525.77" já está correto
                 
-                valores.add(float(valor_limpo))
+                num = float(valor_limpo)
+                # Só adiciona se for valor alto (evita falsos positivos)
+                if num >= 1000000:  # Acima de 1 milhão
+                    valores.add(num)
             except ValueError:
                 continue
     
