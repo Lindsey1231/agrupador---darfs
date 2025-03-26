@@ -61,15 +61,39 @@ def encontrar_valor_darf(texto):
     return valores
 
 def encontrar_valor_comprovante(texto):
-    """Busca valores no comprovante mantendo a versão original"""
+    """Busca valores em comprovantes, tratando todos os formatos de milhões"""
     valores = set()
-    padrao = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
-    for valor in padrao:
-        valor_limpo = valor.replace(".", "").replace(",", ".")
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
+    
+    # Padrão amplo que captura qualquer formato monetário
+    padroes = [
+        r"VALOR (?:DO PRINCIPAL|TOTAL)\s*R\$\s*([\d\.,]+)",  # Padrão principal
+        r"Valor\s*:\s*R\$\s*([\d\.,]+)",                      # Formato alternativo
+        r"Total\s*a\s*Pagar\s*R\$\s*([\d\.,]+)"               # Outra variante
+    ]
+    
+    for padrao in padroes:
+        for valor in re.findall(padrao, texto):
+            try:
+                # Remove R$ e espaços
+                valor_limpo = valor.replace("R$", "").strip()
+                
+                # Detecta automaticamente o formato:
+                if ',' in valor_limpo and '.' in valor_limpo:
+                    # Formato "2,758,525.77" (inglês)
+                    if valor_limpo.index(',') < valor_limpo.index('.'):
+                        valor_limpo = valor_limpo.replace(',', '')
+                    # Formato "2.758.525,77" (português)
+                    else:
+                        valor_limpo = valor_limpo.replace('.', '').replace(',', '.')
+                elif ',' in valor_limpo:
+                    # Formato "2758525,77"
+                    valor_limpo = valor_limpo.replace(',', '.')
+                # Formato "2758525.77" já está correto
+                
+                valores.add(float(valor_limpo))
+            except ValueError:
+                continue
+    
     return valores
 
 def organizar_por_nome_e_valor(arquivos):
