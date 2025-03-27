@@ -1,10 +1,3 @@
-import streamlit as st
-import os
-import tempfile
-import re
-import zipfile
-from PyPDF2 import PdfReader, PdfMerger
-
 def extrair_texto_pdf(arquivo):
     """Extrai texto do PDF."""
     try:
@@ -20,39 +13,45 @@ def extrair_texto_pdf(arquivo):
 def encontrar_nome_fornecedor(texto, tipo_arquivo):
     """Busca o nome do fornecedor no conteúdo do PDF."""
     if tipo_arquivo == "DARF":
+        # Extrai o nome do fornecedor após "Parceiro :"
         padrao_nome = re.findall(r"Parceiro\s*:\s*([\w\s]+?)\s*\d", texto)
     elif tipo_arquivo == "Comprovante":
+        # Extrai o nome do fornecedor após "Nome:"
         padrao_nome = re.findall(r"Nome\s*:\s*([\w\s]+?)\n", texto)
     else:
         return set()
-    return set(padrao_nome)
+    
+    return set(padrao_nome)  # Usamos um set para facilitar a comparação
 
 def encontrar_valor_darf(texto):
-    """Busca valores monetários no DARF mantendo as 3 tentativas originais"""
+    """Busca valores monetários no DARF."""
     valores = set()
     
-    # 1ª Tentativa: Vl.Recolhe (formato tradicional)
-    padrao_1 = re.findall(r"Vl\.Recolhe\s*:\s*([\d\s.,]+)", texto)
-    for valor in padrao_1:
+    # Primeira tentativa: valor após "Vl.Recolhe :"
+    padrao_valor_1 = re.findall(r"Vl\.Recolhe\s*:\s*([\d\s.,]+)", texto)
+    for valor in padrao_valor_1:
+        # Remove espaços e converte para o formato numérico (ponto como separador decimal)
         valor_limpo = valor.replace(" ", "").replace(".", "").replace(",", ".")
         try:
             valores.add(float(valor_limpo))
         except ValueError:
             continue
     
-    # 2ª Tentativa: VALOR DO PRINCIPAL (formato DARF)
-    padrao_2 = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
-    for valor in padrao_2:
-        valor_limpo = valor.replace(".", "").replace(",", ".")
+    # Segunda tentativa: valor após "VALOR DO PRINCIPAL"
+    padrao_valor_2 = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
+    for valor in padrao_valor_2:
+        # Remove "R$" e converte para o formato numérico (ponto como separador decimal)
+        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
         try:
             valores.add(float(valor_limpo))
         except ValueError:
             continue
     
-    # 3ª Tentativa: Valor Total do Documento (formato multi-linha)
-    padrao_3 = re.findall(r"Valor Total do Documento\s*\n\s*([\d\s.,]+)", texto)
-    for valor in padrao_3:
-        valor_limpo = valor.replace(" ", "").replace(".", "").replace(",", ".")
+    # Terceira tentativa: valor na linha seguinte a "Valor Total do Documento"
+    padrao_valor_3 = re.findall(r"Valor Total do Documento\s*\n\s*([\d\s.,]+)", texto)
+    for valor in padrao_valor_3:
+        # Remove espaços e separadores de milhares, mantendo o ponto decimal
+        valor_limpo = valor.replace(" ", "").replace(",", "")
         try:
             valores.add(float(valor_limpo))
         except ValueError:
@@ -61,65 +60,54 @@ def encontrar_valor_darf(texto):
     return valores
 
 def encontrar_valor_comprovante(texto):
-    """Busca valores com 3 tentativas sequenciais e prioritárias"""
+    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
+    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
     valores = set()
-
-    # --------------------------------------------------
-    # TENTATIVA 1: Padrão principal (VALOR DO PRINCIPAL)
-    # --------------------------------------------------
-    tentativa1 = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d\.,]+)", texto)
-    for valor in tentativa1:
+    for valor in padrao_valor:
+        # Remove "R$" e converte para o formato numérico (ponto como separador decimal)
+        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
         try:
-            # Formato BR (1.234,56) → 1234.56
-            if '.' in valor and ',' in valor:
-                valor_limpo = valor.replace('.', '').replace(',', '.')
-            # Formato US (1,234.56) → 1234.56
-            elif ',' in valor:
-                valor_limpo = valor.replace(',', '')
-            else:
-                valor_limpo = valor
             valores.add(float(valor_limpo))
-        except:
+        except ValueError:
             continue
-    
-    if valores:
-        return valores
-
-    # --------------------------------------------------
-    # TENTATIVA 2: Valores com decimais mal interpretados
-    # --------------------------------------------------
-    tentativa2 = re.findall(r"Valor Total do Documento\s*[\n:]?\s*R?\$?\s*([\d\.,]+)", texto)
-    for valor in tentativa2:
+    return valores
+def encontrar_valor_comprovante(texto):
+    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
+    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
+    valores = set()
+    for valor in padrao_valor:
+        # Remove "R$" e separadores de milhares, mantendo o ponto decimal
+        valor_limpo = valor.replace("R$", "").replace(",", "")
         try:
-            valor_limpo = valor.replace('R$', '').replace(' ', '')
-            
-            # Caso especial BRAZA (136.06406 → 136064.06)
-            if '.' in valor_limpo and ',' not in valor_limpo and len(valor_limpo.split('.')[1]) == 5:
-                valor_limpo = valor_limpo.replace('.', '')
-            # Formato normal
-            else:
-                valor_limpo = valor_limpo.replace(',', '.')
-            
             valores.add(float(valor_limpo))
-        except:
+        except ValueError:
             continue
-    
-    if valores:
-        return valores
+    return valores
 
-    # --------------------------------------------------
-    # TENTATIVA 3: Fallback para qualquer padrão monetário
-    # --------------------------------------------------
-    tentativa3 = re.findall(r"(?:VALOR|Total)\s*[\n:]?\s*R?\$?\s*([\d\.,\s]+)", texto, re.IGNORECASE)
-    for valor in tentativa3:
+def encontrar_valor_comprovante(texto):
+    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
+    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
+    valores = set()
+    for valor in padrao_valor:
+        # Remove "R$" e converte para o formato numérico (ponto como separador decimal)
+        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
         try:
-            # Remove todos os separadores não-decimais
-            valor_limpo = re.sub(r'[^\d,]', '', valor)
-            valor_limpo = valor_limpo.replace(',', '.')
             valores.add(float(valor_limpo))
-        except:
+        except ValueError:
             continue
+    return valores
 
+def encontrar_valor_comprovante(texto):
+    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
+    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
+    valores = set()
+    for valor in padrao_valor:
+        # Remove "R$" e converte para o formato numérico
+        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
+        try:
+            valores.add(float(valor_limpo))
+        except ValueError:
+            continue
     return valores
 
 def organizar_por_nome_e_valor(arquivos):
@@ -148,8 +136,9 @@ def organizar_por_nome_e_valor(arquivos):
     # Associa DARFs e comprovantes
     for darf, nome_darf, valores_darf, nome_fornecedor_darf, tipo_darf in info_arquivos:
         if tipo_darf != "DARF":
-            continue
+            continue  # Ignora arquivos que não são DARFs
         
+        # Primeira etapa: tenta agrupar por NOME + VALOR
         correspondencia_encontrada = False
         for comprovante, nome_comp, valores_comp, nome_fornecedor_comp, tipo_comp in info_arquivos:
             if tipo_comp == "Comprovante" and nome_fornecedor_darf & nome_fornecedor_comp and valores_darf & valores_comp:
@@ -158,6 +147,7 @@ def organizar_por_nome_e_valor(arquivos):
                 correspondencia_encontrada = True
                 break
         
+        # Segunda etapa: se não encontrou correspondência por NOME + VALOR, tenta apenas pelo VALOR
         if not correspondencia_encontrada:
             for comprovante, nome_comp, valores_comp, nome_fornecedor_comp, tipo_comp in info_arquivos:
                 if tipo_comp == "Comprovante" and valores_darf & valores_comp:
@@ -174,6 +164,7 @@ def organizar_por_nome_e_valor(arquivos):
                 try:
                     for doc in arquivos:
                         merger.append(doc)
+                    # Usa o nome do arquivo DARF como nome do arquivo final
                     output_filename = nome_final
                     output_path = os.path.join(temp_dir, output_filename)
                     merger.write(output_path)
@@ -187,17 +178,18 @@ def organizar_por_nome_e_valor(arquivos):
     return pdf_resultados, zip_path
 
 def main():
-    st.title("Agrupador de DARFs e Comprovantes")
+    st.title("Agrupador de DARFs")  # Nome do app alterado
     
-    arquivos = st.file_uploader("Selecione os arquivos DARF e comprovantes", 
-                              accept_multiple_files=True, 
-                              type=["pdf"])
+    # Texto do botão de upload personalizado
+    arquivos = st.file_uploader("Selecione os arquivos DARF e comprovantes", accept_multiple_files=True, key="file_uploader")
     
     if arquivos and len(arquivos) > 0:
-        if st.button("🔗 Processar Documentos"):
-            st.write("### Iniciando processamento...")
+        # Texto do botão de processamento personalizado
+        if st.button("🔗 Processar Documentos", key="process_button"):
+            st.write("### Iniciando processamento...")  # Mensagem personalizada
             pdf_resultados, zip_path = organizar_por_nome_e_valor(arquivos)
             
+            # Verifica se o arquivo ZIP foi gerado corretamente
             if os.path.exists(zip_path):
                 for nome, caminho in pdf_resultados.items():
                     with open(caminho, "rb") as f:
@@ -209,16 +201,27 @@ def main():
                             key=f"download_{nome}"
                         )
                 
+                # Força o download do ZIP
                 with open(zip_path, "rb") as f:
                     st.download_button(
                         label="📥 Baixar todos como ZIP",
                         data=f,
-                        file_name="documentos_agrupados.zip",
+                        file_name="documentos_agrupados.zip",  # Nome do ZIP personalizado
                         mime="application/zip",
                         key="download_zip"
                     )
             else:
-                st.error("Erro ao gerar o arquivo ZIP.")
+                st.error("Erro ao gerar o arquivo ZIP. Verifique os logs para mais detalhes.")
 
 if __name__ == "__main__":
-    main()
+    main()                                                                                                                                               Preciso de ajuda no caso em que temos darfs na casa dos milhões; ele não conseguiu ler o caso da darfs de 2.758.525,77. Creio que o problema está nessa parte do código: # Terceira tentativa: valor na linha seguinte a "Valor Total do Documento"
+    padrao_valor_3 = re.findall(r"Valor Total do Documento\s*\n\s*([\d\s.,]+)", texto)
+    for valor in padrao_valor_3:
+        # Remove espaços e separadores de milhares, mantendo o ponto decimal
+        valor_limpo = valor.replace(" ", "").replace(",", "")
+        try:
+            valores.add(float(valor_limpo))
+        except ValueError:
+            continue
+    
+    return valores
