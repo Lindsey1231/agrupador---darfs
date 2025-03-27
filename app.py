@@ -89,10 +89,9 @@ def encontrar_valor_comprovante(texto):
     # --------------------------------------------------
     # TENTATIVA 2: LÓGICA PARA MILHÕES (apenas se a primeira falhar)
     # --------------------------------------------------
-    padroes_especiais = [
+   padroes_especiais = [
         r"VALOR (?:DO PRINCIPAL|TOTAL)\s*R\$\s*([\d\.,]+)",
-        r"Valor\s*:\s*R\$\s*([\d\.,]+)",
-        r"Total\s*a\s*Pagar\s*R\$\s*([\d\.,]+)"
+        r"Valor\s*:\s*R\$\s*([\d\.,]+)"
     ]
     
     for padrao in padroes_especiais:
@@ -111,7 +110,9 @@ def encontrar_valor_comprovante(texto):
                     valor_limpo = valor_limpo.replace(',', '.')
                 
                 num = float(valor_limpo)
-                valores.add(num)
+                # Só adiciona se for valor alto (evita falsos positivos)
+                if num >= 1000000:  # Acima de 1 milhão
+                    valores.add(num)
             except ValueError:
                 continue
     
