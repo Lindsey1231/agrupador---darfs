@@ -89,30 +89,33 @@ def encontrar_valor_comprovante(texto):
     # --------------------------------------------------
     # TENTATIVA 2: LÓGICA PARA MILHÕES (apenas se a primeira falhar)
     # --------------------------------------------------
-   padroes_especiais = [
-        r"VALOR (?:DO PRINCIPAL|TOTAL)\s*R\$\s*([\d\.,]+)",
-        r"Valor\s*:\s*R\$\s*([\d\.,]+)"
+    # Padrão amplo que captura qualquer formato monetário
+    padroes = [
+        r"VALOR (?:DO PRINCIPAL|TOTAL)\s*R\$\s*([\d\.,]+)",  # Padrão principal
+        r"Valor\s*:\s*R\$\s*([\d\.,]+)",                      # Formato alternativo
+        r"Total\s*a\s*Pagar\s*R\$\s*([\d\.,]+)"               # Outra variante
     ]
     
-    for padrao in padroes_especiais:
+    for padrao in padroes:
         for valor in re.findall(padrao, texto):
             try:
                 # Remove R$ e espaços
                 valor_limpo = valor.replace("R$", "").strip()
                 
-                # Lógica inteligente para milhões
+                # Detecta automaticamente o formato:
                 if ',' in valor_limpo and '.' in valor_limpo:
-                    if valor_limpo.index(',') < valor_limpo.index('.'):  # Formato "2,758,525.77"
+                    # Formato "2,758,525.77" (inglês)
+                    if valor_limpo.index(',') < valor_limpo.index('.'):
                         valor_limpo = valor_limpo.replace(',', '')
-                    else:  # Formato "2.758.525,77"
+                    # Formato "2.758.525,77" (português)
+                    else:
                         valor_limpo = valor_limpo.replace('.', '').replace(',', '.')
-                elif ',' in valor_limpo:  # Formato "2758525,77"
+                elif ',' in valor_limpo:
+                    # Formato "2758525,77"
                     valor_limpo = valor_limpo.replace(',', '.')
+                # Formato "2758525.77" já está correto
                 
-                num = float(valor_limpo)
-                # Só adiciona se for valor alto (evita falsos positivos)
-                if num >= 1000000:  # Acima de 1 milhão
-                    valores.add(num)
+                valores.add(float(valor_limpo))
             except ValueError:
                 continue
     
