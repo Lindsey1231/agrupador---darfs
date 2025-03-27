@@ -61,89 +61,69 @@ def encontrar_valor_darf(texto):
     return valores
 
 def encontrar_valor_comprovante(texto):
-    """Busca valores em comprovantes com duas camadas de lógica"""
+    """Busca valores em comprovantes com 3 camadas inteligentes"""
     valores = set()
-    
-    # --------------------------------------------
-    # PRIMEIRA LÓGICA (ORIGINAL - PARA 99% DOS CASOS)
-    # --------------------------------------------
-   for valor in padrao_valor:
-        # Remove "R$" e converte para o formato numérico (ponto como separador decimal)
-        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
-    return valores
-def encontrar_valor_comprovante(texto):
-    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
-    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
-    valores = set()
-    for valor in padrao_valor:
-        # Remove "R$" e separadores de milhares, mantendo o ponto decimal
-        valor_limpo = valor.replace("R$", "").replace(",", "")
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
-    return valores
 
-def encontrar_valor_comprovante(texto):
-    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
-    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
-    valores = set()
-    for valor in padrao_valor:
-        # Remove "R$" e converte para o formato numérico (ponto como separador decimal)
-        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
+    # ==================================================
+    # CAMADA 1 - Padrão original (99% dos casos normais)
+    # Para: VALOR DO PRINCIPAL R$ 1.000,00
+    # ==================================================
+    padrao1 = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d\.,]+)", texto)
+    for valor in padrao1:
         try:
-            valores.add(float(valor_limpo))
+            valor_limpo = valor.replace(".", "").replace(",", ".")
+            num = float(valor_limpo)
+            valores.add(num)
         except ValueError:
             continue
-    return valores
+    
+    if valores:
+        return valores
 
-def encontrar_valor_comprovante(texto):
-    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
-    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
-    valores = set()
-    for valor in padrao_valor:
-        # Remove "R$" e converte para o formato numérico
-        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
+    # ==================================================
+    # CAMADA 2 - Casos especiais de milhares (como 136.06406)
+    # Para: Valor Total do Documento\n 136.064,06
+    # ==================================================
+    padrao2 = re.findall(r"Valor Total do Documento\s*\n\s*([\d\s\.,]+)", texto)
+    for valor in padrao2:
         try:
-            valores.add(float(valor_limpo))
+            # Remove espaços e trata como decimal
+            valor_limpo = valor.replace(" ", "").replace(".", "").replace(",", ".")
+            num = float(valor_limpo)
+            # Corrige valores que foram interpretados errado (como 136.06406)
+            if num < 1000:  # Se o valor for menor que 1000, multiplica por 1000
+                num = num * 1000
+            valores.add(num)
         except ValueError:
             continue
-    return valores
     
-    # --------------------------------------------
-    # SEGUNDA LÓGICA (ESPECIAL PARA MILHÕES - APENAS SE A PRIMEIRA FALHAR)
-    # --------------------------------------------
-    padroes_especiais = [
-        r"VALOR (?:DO PRINCIPAL|TOTAL)\s*R\$\s*([\d\.,]+)",
-        r"Valor\s*:\s*R\$\s*([\d\.,]+)"
-    ]
-    
-    for padrao in padroes_especiais:
-        for valor in re.findall(padrao, texto):
-            try:
-                # Remove R$ e espaços
-                valor_limpo = valor.replace("R$", "").strip()
-                
-                # Lógica inteligente para milhões
-                if ',' in valor_limpo and '.' in valor_limpo:
-                    if valor_limpo.index(',') < valor_limpo.index('.'):  # Formato "2,758,525.77"
-                        valor_limpo = valor_limpo.replace(',', '')
-                    else:  # Formato "2.758.525,77"
-                        valor_limpo = valor_limpo.replace('.', '').replace(',', '.')
-                elif ',' in valor_limpo:  # Formato "2758525,77"
-                    valor_limpo = valor_limpo.replace(',', '.')
-                
-                num = float(valor_limpo)
-                # Só adiciona se for valor alto (evita falsos positivos)
-                if num >= 1000000:  # Acima de 1 milhão
-                    valores.add(num)
-            except ValueError:
-                continue
-    
+    if valores:
+        return valores
+
+    # ==================================================
+    # CAMADA 3 - Casos de milhões com formatos complexos
+    # Para: R$ 2,758,525.77 ou 2.758.525,77
+    # ==================================================
+    padrao3 = re.findall(r"(?:VALOR TOTAL|VALOR DO PRINCIPAL)\s*R\$\s*([\d\.,]+)", texto)
+    for valor in padrao3:
+        try:
+            # Remove R$ e espaços
+            valor_limpo = valor.replace("R$", "").strip()
+            
+            # Detecta formato automaticamente
+            if ',' in valor_limpo and '.' in valor_limpo:
+                if valor_limpo.index(',') < valor_limpo.index('.'):  # Formato "2,758,525.77"
+                    valor_limpo = valor_limpo.replace(',', '')
+                else:  # Formato "2.758.525,77"
+                    valor_limpo = valor_limpo.replace('.', '').replace(',', '.')
+            elif ',' in valor_limpo:  # Formato "2758525,77"
+                valor_limpo = valor_limpo.replace(',', '.')
+            
+            num = float(valor_limpo)
+            valores.add(num)
+        except ValueError:
+            continue
+
     return valores
 
 def organizar_por_nome_e_valor(arquivos):
