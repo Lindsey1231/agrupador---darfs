@@ -64,7 +64,7 @@ def encontrar_valor_darf(texto):
         except ValueError:
             continue
     
-    return valores.
+    return valores
     
     # 4ª Tentativa: Valor Total do Documento (tratamento especial para milhões)
     padrao_3 = re.findall(r"Valor Total do Documento\s*\n\s*([\d\s.,]+)", texto)
