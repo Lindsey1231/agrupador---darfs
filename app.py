@@ -54,12 +54,24 @@ def encontrar_valor_darf(texto):
         except ValueError:
             continue
     
-    # Terceira tentativa: valor na linha seguinte a "Valor Total do Documento"
-    padrao_valor_3 = re.findall(r"Valor Total do Documento\s*\n\s*([\d\s.,]+)", texto)
-    for valor in padrao_valor_3:
-        # Remove espaços e separadores de milhares, mantendo o ponto decimal
-        valor_limpo = valor.replace(" ", "").replace(",", "")
+    # 3ª Tentativa: Valor Total do Documento (tratamento especial para milhões)
+    padrao_3 = re.findall(r"Valor Total do Documento\s*\n\s*([\d\s.,]+)", texto)
+    for valor in padrao_3:
         try:
+            # Remove espaços e trata separadores
+            valor_limpo = valor.replace(" ", "")
+            
+            # Verifica se tem formato de milhão (com separadores)
+            if '.' in valor_limpo and ',' in valor_limpo:
+                # Formato "1.234.567,89" → remove pontos, troca vírgula
+                valor_limpo = valor_limpo.replace('.', '').replace(',', '.')
+            elif ',' in valor_limpo:
+                # Formato "1234567,89" → troca vírgula por ponto
+                valor_limpo = valor_limpo.replace(',', '.')
+            else:
+                # Formato "1234567.89" → mantém como está
+                pass
+                
             valores.add(float(valor_limpo))
         except ValueError:
             continue
