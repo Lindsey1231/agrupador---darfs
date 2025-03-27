@@ -1,3 +1,10 @@
+import streamlit as st
+import os
+import tempfile
+import re
+import zipfile
+from PyPDF2 import PdfReader, PdfMerger
+
 def extrair_texto_pdf(arquivo):
     """Extrai texto do PDF."""
     try:
@@ -214,14 +221,4 @@ def main():
                 st.error("Erro ao gerar o arquivo ZIP. Verifique os logs para mais detalhes.")
 
 if __name__ == "__main__":
-    main()                                                                                                                                               Preciso de ajuda no caso em que temos darfs na casa dos milhões; ele não conseguiu ler o caso da darfs de 2.758.525,77. Creio que o problema está nessa parte do código: # Terceira tentativa: valor na linha seguinte a "Valor Total do Documento"
-    padrao_valor_3 = re.findall(r"Valor Total do Documento\s*\n\s*([\d\s.,]+)", texto)
-    for valor in padrao_valor_3:
-        # Remove espaços e separadores de milhares, mantendo o ponto decimal
-        valor_limpo = valor.replace(" ", "").replace(",", "")
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
-    
-    return valores
+    main()        
