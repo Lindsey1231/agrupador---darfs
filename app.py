@@ -61,17 +61,24 @@ def encontrar_valor_darf(texto):
     return valores
 
 def encontrar_valor_comprovante(texto):
-    """Busca valores em comprovantes com 3 camadas inteligentes"""
+    """Busca valores em comprovantes com tratamento preciso para todos os formatos"""
     valores = set()
 
-    # ==================================================
-    # CAMADA 1 - Padrão original (99% dos casos normais)
-    # Para: VALOR DO PRINCIPAL R$ 1.000,00
-    # ==================================================
+    # --------------------------------------------------
+    # CAMADA 1 - Padrão principal (VALOR DO PRINCIPAL)
+    # Para: VALOR DO PRINCIPAL R$ 1.000,00 (formato BR)
+    # --------------------------------------------------
     padrao1 = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d\.,]+)", texto)
     for valor in padrao1:
         try:
-            valor_limpo = valor.replace(".", "").replace(",", ".")
+            # Verifica se é formato BR (1.000,00) ou US (1,000.00)
+            if ',' in valor and ('.' in valor and valor.index('.') < valor.index(',')):
+                # Formato BR: 1.000,00 → remove pontos, troca vírgula
+                valor_limpo = valor.replace('.', '').replace(',', '.')
+            else:
+                # Formato US: 1,000.00 → remove vírgulas
+                valor_limpo = valor.replace(',', '')
+            
             num = float(valor_limpo)
             valores.add(num)
         except ValueError:
@@ -80,19 +87,28 @@ def encontrar_valor_comprovante(texto):
     if valores:
         return valores
 
-    # ==================================================
-    # CAMADA 2 - Casos especiais de milhares (como 136.06406)
-    # Para: Valor Total do Documento\n 136.064,06
-    # ==================================================
-    padrao2 = re.findall(r"Valor Total do Documento\s*\n\s*([\d\s\.,]+)", texto)
+    # --------------------------------------------------
+    # CAMADA 2 - Valores com decimais mal interpretados
+    # Para casos como: 136.06406 (deveria ser 136064.06)
+    # --------------------------------------------------
+    padrao2 = re.findall(r"(?:VALOR TOTAL|Valor Total do Documento)\s*R?\$?\s*([\d\.,]+)", texto, re.IGNORECASE)
     for valor in padrao2:
         try:
-            # Remove espaços e trata como decimal
-            valor_limpo = valor.replace(" ", "").replace(".", "").replace(",", ".")
+            # Remove qualquer R$ e espaços
+            valor_limpo = valor.replace('R$', '').replace(' ', '')
+            
+            # Verifica se tem separador decimal implícito (caso 136.06406)
+            if '.' in valor_limpo and ',' not in valor_limpo:
+                partes = valor_limpo.split('.')
+                if len(partes[-1]) == 5:  # Padrão do erro (136.06406)
+                    valor_limpo = valor_limpo.replace('.', '')
+                elif len(partes[-1]) == 2:  # Formato normal (344.19)
+                    pass  # Mantém como está
+            elif ',' in valor_limpo:
+                # Formato BR com vírgula decimal
+                valor_limpo = valor_limpo.replace('.', '').replace(',', '.')
+            
             num = float(valor_limpo)
-            # Corrige valores que foram interpretados errado (como 136.06406)
-            if num < 1000:  # Se o valor for menor que 1000, multiplica por 1000
-                num = num * 1000
             valores.add(num)
         except ValueError:
             continue
@@ -100,23 +116,22 @@ def encontrar_valor_comprovante(texto):
     if valores:
         return valores
 
-    # ==================================================
-    # CAMADA 3 - Casos de milhões com formatos complexos
-    # Para: R$ 2,758,525.77 ou 2.758.525,77
-    # ==================================================
-    padrao3 = re.findall(r"(?:VALOR TOTAL|VALOR DO PRINCIPAL)\s*R\$\s*([\d\.,]+)", texto)
+    # --------------------------------------------------
+    # CAMADA 3 - Fallback para formatos complexos
+    # --------------------------------------------------
+    padrao3 = re.findall(r"(?:VALOR|Total|Valor)\s*:?\s*R?\$?\s*([\d\.,]+)", texto, re.IGNORECASE)
     for valor in padrao3:
         try:
-            # Remove R$ e espaços
-            valor_limpo = valor.replace("R$", "").strip()
+            # Remove não-numéricos e trata decimais
+            valor_limpo = valor.replace('R$', '').replace(' ', '')
             
-            # Detecta formato automaticamente
-            if ',' in valor_limpo and '.' in valor_limpo:
-                if valor_limpo.index(',') < valor_limpo.index('.'):  # Formato "2,758,525.77"
-                    valor_limpo = valor_limpo.replace(',', '')
-                else:  # Formato "2.758.525,77"
+            if '.' in valor_limpo and ',' in valor_limpo:
+                # Decide qual é separador decimal
+                if valor_limpo.index('.') > valor_limpo.index(','):  # 1.000,00
                     valor_limpo = valor_limpo.replace('.', '').replace(',', '.')
-            elif ',' in valor_limpo:  # Formato "2758525,77"
+                else:  # 1,000.00
+                    valor_limpo = valor_limpo.replace(',', '')
+            elif ',' in valor_limpo:  # 100,00
                 valor_limpo = valor_limpo.replace(',', '.')
             
             num = float(valor_limpo)
