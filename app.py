@@ -67,18 +67,52 @@ def encontrar_valor_comprovante(texto):
     # --------------------------------------------
     # PRIMEIRA LÓGICA (ORIGINAL - PARA 99% DOS CASOS)
     # --------------------------------------------
-    padrao_original = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d\.,]+)", texto)
-    for valor in padrao_original:
+   for valor in padrao_valor:
+        # Remove "R$" e converte para o formato numérico (ponto como separador decimal)
+        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
         try:
-            # Formato original (funciona para valores até 999.999,99)
-            valor_limpo = valor.replace(".", "").replace(",", ".")
-            num = float(valor_limpo)
-            valores.add(num)
+            valores.add(float(valor_limpo))
         except ValueError:
             continue
-    
-    if valores:  # Se encontrou valores com a primeira lógica, retorna
-        return valores
+    return valores
+def encontrar_valor_comprovante(texto):
+    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
+    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
+    valores = set()
+    for valor in padrao_valor:
+        # Remove "R$" e separadores de milhares, mantendo o ponto decimal
+        valor_limpo = valor.replace("R$", "").replace(",", "")
+        try:
+            valores.add(float(valor_limpo))
+        except ValueError:
+            continue
+    return valores
+
+def encontrar_valor_comprovante(texto):
+    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
+    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
+    valores = set()
+    for valor in padrao_valor:
+        # Remove "R$" e converte para o formato numérico (ponto como separador decimal)
+        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
+        try:
+            valores.add(float(valor_limpo))
+        except ValueError:
+            continue
+    return valores
+
+def encontrar_valor_comprovante(texto):
+    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
+    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
+    valores = set()
+    for valor in padrao_valor:
+        # Remove "R$" e converte para o formato numérico
+        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
+        try:
+            valores.add(float(valor_limpo))
+        except ValueError:
+            continue
+    return valores
     
     # --------------------------------------------
     # SEGUNDA LÓGICA (ESPECIAL PARA MILHÕES - APENAS SE A PRIMEIRA FALHAR)
