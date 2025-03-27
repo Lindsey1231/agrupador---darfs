@@ -61,24 +61,17 @@ def encontrar_valor_darf(texto):
     return valores
 
 def encontrar_valor_comprovante(texto):
-    """Busca valores em comprovantes com tratamento preciso para todos os formatos"""
+    """Busca valores em comprovantes com 3 camadas inteligentes"""
     valores = set()
 
-    # --------------------------------------------------
-    # CAMADA 1 - Padrão principal (VALOR DO PRINCIPAL)
-    # Para: VALOR DO PRINCIPAL R$ 1.000,00 (formato BR)
-    # --------------------------------------------------
+    # ==================================================
+    # CAMADA 1 - Padrão original (99% dos casos normais)
+    # Para: VALOR DO PRINCIPAL R$ 1.000,00
+    # ==================================================
     padrao1 = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d\.,]+)", texto)
     for valor in padrao1:
         try:
-            # Verifica se é formato BR (1.000,00) ou US (1,000.00)
-            if ',' in valor and ('.' in valor and valor.index('.') < valor.index(',')):
-                # Formato BR: 1.000,00 → remove pontos, troca vírgula
-                valor_limpo = valor.replace('.', '').replace(',', '.')
-            else:
-                # Formato US: 1,000.00 → remove vírgulas
-                valor_limpo = valor.replace(',', '')
-            
+            valor_limpo = valor.replace(".", "").replace(",", ".")
             num = float(valor_limpo)
             valores.add(num)
         except ValueError:
