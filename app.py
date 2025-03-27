@@ -67,56 +67,56 @@ def encontrar_valor_darf(texto):
     return valores
 
 def encontrar_valor_comprovante(texto):
-    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
-    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
+    """Busca valores com 2 tentativas: padrão original + milhões"""
     valores = set()
-    for valor in padrao_valor:
-        # Remove "R$" e converte para o formato numérico (ponto como separador decimal)
-        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
+    
+    # --------------------------------------------------
+    # TENTATIVA 1: CÓDIGO ORIGINAL (funciona para 99% dos casos)
+    # --------------------------------------------------
+    padrao_original = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d\.,]+)", texto)
+    for valor in padrao_original:
         try:
-            valores.add(float(valor_limpo))
+            # Formato original (funciona para valores até 999.999,99)
+            valor_limpo = valor.replace(".", "").replace(",", ".")
+            num = float(valor_limpo)
+            valores.add(num)
         except ValueError:
             continue
+    
+    if valores:  # Se encontrou valores com a primeira lógica, retorna
+        return valores
+    
+    # --------------------------------------------------
+    # TENTATIVA 2: LÓGICA PARA MILHÕES (apenas se a primeira falhar)
+    # --------------------------------------------------
+    padroes_especiais = [
+        r"VALOR (?:DO PRINCIPAL|TOTAL)\s*R\$\s*([\d\.,]+)",
+        r"Valor\s*:\s*R\$\s*([\d\.,]+)",
+        r"Total\s*a\s*Pagar\s*R\$\s*([\d\.,]+)"
+    ]
+    
+    for padrao in padroes_especiais:
+        for valor in re.findall(padrao, texto):
+            try:
+                # Remove R$ e espaços
+                valor_limpo = valor.replace("R$", "").strip()
+                
+                # Lógica inteligente para milhões
+                if ',' in valor_limpo and '.' in valor_limpo:
+                    if valor_limpo.index(',') < valor_limpo.index('.'):  # Formato "2,758,525.77"
+                        valor_limpo = valor_limpo.replace(',', '')
+                    else:  # Formato "2.758.525,77"
+                        valor_limpo = valor_limpo.replace('.', '').replace(',', '.')
+                elif ',' in valor_limpo:  # Formato "2758525,77"
+                    valor_limpo = valor_limpo.replace(',', '.')
+                
+                num = float(valor_limpo)
+                valores.add(num)
+            except ValueError:
+                continue
+    
     return valores
-def encontrar_valor_comprovante(texto):
-    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
-    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
-    valores = set()
-    for valor in padrao_valor:
-        # Remove "R$" e separadores de milhares, mantendo o ponto decimal
-        valor_limpo = valor.replace("R$", "").replace(",", "")
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
-    return valores
-
-def encontrar_valor_comprovante(texto):
-    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
-    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
-    valores = set()
-    for valor in padrao_valor:
-        # Remove "R$" e converte para o formato numérico (ponto como separador decimal)
-        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
-    return valores
-
-def encontrar_valor_comprovante(texto):
-    """Busca valores monetários no comprovante (após 'VALOR DO PRINCIPAL')."""
-    padrao_valor = re.findall(r"VALOR DO PRINCIPAL\s*R\$\s*([\d.,]+)", texto)
-    valores = set()
-    for valor in padrao_valor:
-        # Remove "R$" e converte para o formato numérico
-        valor_limpo = valor.replace("R$", "").replace(".", "").replace(",", ".")
-        try:
-            valores.add(float(valor_limpo))
-        except ValueError:
-            continue
-    return valores
-
+    
 def organizar_por_nome_e_valor(arquivos):
     st.write("### Processando arquivos...")
     temp_dir = tempfile.mkdtemp()
